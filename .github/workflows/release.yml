@@ -1,0 +1,36 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write # npm Trusted Publishing (OIDC) — no tokens stored
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Validate package consistency
+        run: |
+          node --check scripts/package-registry.mjs
+          npm run package:registry -- --dry-run
+
+      - name: Publish to npm (Trusted Publishing + provenance)
+        # Fails closed unless the npm trusted publisher is configured for
+        # this repository/workflow/environment. No NODE_AUTH_TOKEN fallback.
+        run: npm publish --provenance --access public
