@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
-# @all3cn/dsh-better-sidebar 一键安装脚本（官方 CLI 方式，macOS / Linux / Windows Git Bash）
+# @all3cn/dsh-better-sidebar-n23 一键安装脚本（官方 CLI 方式，macOS / Linux / Windows Git Bash）
 #
 # 通过 DSH 官方插件命令安装 npm 包并自动挂载：
-#   dsh plugin --profile web add @all3cn/dsh-better-sidebar@<version>
+#   dsh plugin --profile web add @all3cn/dsh-better-sidebar-n23@<version>
 #
 # 包内声明了 dsh.bundle.patch（cordis.patch.yml）：CLI 的 bundle 协调会把它
 # 自动加进 profile 的 dsh.profile.bundles，下次启动即挂载——无需手动写
@@ -38,8 +38,8 @@
 #   minimumReleaseAgeExclude（幂等），放行本插件，避免"重跑一次才成功"。
 # - 老版本（<0.10.2）用手动挂载行，bundle 通道激活后需移除，否则双挂载
 #   （Node 半挂两次、页面两个侧边栏）。脚本会幂等移除 better-sidebar 挂载行。
-# - 回滚：dsh plugin --profile web remove @all3cn/dsh-better-sidebar，或把 profile 依赖
-#   改回 "@all3cn/dsh-better-sidebar": "link:<路径>" 再 pnpm install。
+# - 回滚：dsh plugin --profile web remove @all3cn/dsh-better-sidebar-n23，或把 profile 依赖
+#   改回 "@all3cn/dsh-better-sidebar-n23": "link:<路径>" 再 pnpm install。
 # =============================================================================
 set -euo pipefail
 
@@ -47,7 +47,7 @@ set -euo pipefail
 for arg in "$@"; do
   if [ "$arg" = "-h" ] || [ "$arg" = "--help" ]; then
     cat <<'EOF'
-@all3cn/dsh-better-sidebar 一键安装 / 依赖修复脚本
+@all3cn/dsh-better-sidebar-n23 一键安装 / 依赖修复脚本
 
 用法：
   bash scripts/install.sh [版本] [--restart] [--dry-run] [--profile <名>]
@@ -67,7 +67,7 @@ done
 
 DSH_HOME="${DSH_HOME:-${HOME:-${USERPROFILE:-}}/.dsh}"
 REGISTRY="${REGISTRY:-https://registry.npmjs.org}"
-PKG="@all3cn/dsh-better-sidebar"
+PKG="@all3cn/dsh-better-sidebar-n23"
 DSH_CMD="${DSH_CMD:-dsh}"
 # Optional command used only when --restart is explicitly requested. It must
 # enforce SIGTERM-first graceful stopping and a bounded wait window itself.
@@ -123,9 +123,9 @@ if (!/^\s*allowBuilds:\s*$/m.test(t)) {
 // minimumReleaseAgeExclude：放行本插件（版本无关），避免 <24h 新版本被拒
 if (!/^\s*-\s+@all3cn\/dsh-better-sidebar\s*$/m.test(t)) {
   if (/^\s*minimumReleaseAgeExclude:\s*$/m.test(t)) {
-    t = t.replace(/^(\s*minimumReleaseAgeExclude:\s*)$/m, "$1\n  - @all3cn/dsh-better-sidebar");
+    t = t.replace(/^(\s*minimumReleaseAgeExclude:\s*)$/m, "$1\n  - @all3cn/dsh-better-sidebar-n23");
   } else {
-    t += "\nminimumReleaseAgeExclude:\n  - @all3cn/dsh-better-sidebar\n";
+    t += "\nminimumReleaseAgeExclude:\n  - @all3cn/dsh-better-sidebar-n23\n";
   }
 }
 if (t !== before) fs.writeFileSync(p, t);
@@ -227,7 +227,7 @@ if ! node -e '
   const bundles = p.dsh?.profile?.bundles ?? [];
   process.exit(bundles.includes(process.argv[2]) ? 0 : 1);
 ' "$PROFILE_DIR/package.json" "$PKG"; then
-  warn "@all3cn/dsh-better-sidebar 未出现在 dsh.profile.bundles 中——挂载未注册。"
+  warn "@all3cn/dsh-better-sidebar-n23 未出现在 dsh.profile.bundles 中——挂载未注册。"
   warn "若上面的 pnpm 输出提示 ignored build scripts，请确认 $WS_YML 的 allowBuilds 后重跑本脚本。"
   exit 1
 fi

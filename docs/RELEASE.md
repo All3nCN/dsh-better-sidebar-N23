@@ -1,6 +1,6 @@
-# Release process — @all3cn/dsh-better-sidebar
+# Release process — @all3cn/dsh-better-sidebar-n23
 
-This fork publishes the npm package `@all3cn/dsh-better-sidebar`. The
+This fork publishes the npm package `@all3cn/dsh-better-sidebar-n23`. The
 repository ships the prebuilt `lib/` directly (no tsc/tsdown toolchain is
 carried; `src/` and `lib/` are synchronized by hand — see
 [UPSTREAM.md](../UPSTREAM.md)), so releases never build in CI.
@@ -26,7 +26,7 @@ Defined by `files` in `package.json`:
 node --check scripts/package-registry.mjs        # syntax
 npm run package:registry -- --dry-run           # validate files allowlist + manifest
 npm pack --ignore-scripts                       # audit exact tarball contents
-tar -tzf all3cn-dsh-better-sidebar-0.1.0.tgz    # spot-check entries
+tar -tzf all3cn-dsh-better-sidebar-n23-0.1.0.tgz    # spot-check entries
 ```
 
 The registry packager additionally writes `dist/dsh-plugin.json` (manifest
@@ -51,9 +51,9 @@ GitHub or anywhere else.
 One-time setup (repo admin, in npmjs.com):
 
 1. Create / claim the `@all3cn` scope (public).
-2. For package `@all3cn/dsh-better-sidebar`, configure a trusted publisher:
+2. For package `@all3cn/dsh-better-sidebar-n23`, configure a trusted publisher:
    - registry: `npmjs.com`
-   - repository: `All3nCN/dsh-better-sidebar`
+   - repository: `All3nCN/dsh-better-sidebar-N23`
    - workflow filename: `.github/workflows/release.yml`
    - environment: `release`
 
@@ -77,7 +77,7 @@ to be configured first — the workflow fails closed (no fallback token).
 Install channel:
 
 ```sh
-dsh plugin --profile web add @all3cn/dsh-better-sidebar
+dsh plugin --profile web add @all3cn/dsh-better-sidebar-n23
 ```
 
 Marketplace listing: no unauthenticated submission route for a DSH plugin

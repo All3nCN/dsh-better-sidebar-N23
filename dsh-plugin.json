@@ -1,13 +1,13 @@
 {
   "schema": "dsh-plugin/manifest@1",
-  "name": "@all3cn/dsh-better-sidebar",
+  "name": "@all3cn/dsh-better-sidebar-n23",
   "id": "better-sidebar",
   "version": "0.1.0",
-  "displayName": "Better Sidebar Workbench (@all3cn fork)",
+  "displayName": "dsh-better-sidebar-N23",
   "description": "Complete DSH workbench (explorer / editors / previews / terminal / git / browser / tasks, side + bottom split panes) with a VSCode-like shell refactor. Service-first: exposes ctx.betterSidebar to other plugins.",
   "platform": "web",
   "license": "MIT",
-  "repository": "https://github.com/All3nCN/dsh-better-sidebar",
+  "repository": "https://github.com/All3nCN/dsh-better-sidebar-N23",
   "upstream": {
     "name": "dsh-better-sidebar",
     "version": "0.12.3",
@@ -18,7 +18,7 @@
     "validatedAgainst": "0.1.1-rc.2",
     "node": ">=20"
   },
-  "install": "dsh plugin --profile web add @all3cn/dsh-better-sidebar",
+  "install": "dsh plugin --profile web add @all3cn/dsh-better-sidebar-n23",
   "entry": {
     "host": "lib/index.js",
     "client": "lib/client.js"

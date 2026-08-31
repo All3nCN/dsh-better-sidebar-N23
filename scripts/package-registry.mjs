@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Build-free registry packaging for @all3cn/dsh-better-sidebar.
+ * Build-free registry packaging for @all3cn/dsh-better-sidebar-n23.
  *
  * This fork ships its compiled `lib/` directly (see UPSTREAM.md: `src/` and
  * `lib/` are synchronized by hand; the repo carries no tsc/tsdown build
@@ -40,7 +40,7 @@ const pkgPath = join(root, "package.json");
 if (!existsSync(pkgPath)) fail("package.json not found");
 const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 
-if (!pkg.name || pkg.name !== "@all3cn/dsh-better-sidebar") {
+if (!pkg.name || pkg.name !== "@all3cn/dsh-better-sidebar-n23") {
   fail(`unexpected package name: ${pkg.name ?? "(none)"}`);
 }
 if (!pkg.version) fail("package.json has no version");
@@ -134,7 +134,7 @@ try {
 } catch {
   fail("npm pack failed");
 }
-const tgzName = `all3cn-dsh-better-sidebar-${pkg.version}.tgz`;
+const tgzName = `all3cn-dsh-better-sidebar-n23-${pkg.version}.tgz`;
 const tgz = join(root, tgzName);
 if (!existsSync(tgz)) fail(`expected tarball ${tgzName} not produced in ${root}`);
 cpSync(tgz, join(distDir, tgzName));

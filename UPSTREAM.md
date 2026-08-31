@@ -1,12 +1,12 @@
 # Upstream attribution
 
-`@all3cn/dsh-better-sidebar` is a fork of the open-source DSH plugin
+`@all3cn/dsh-better-sidebar-n23` is a fork of the open-source DSH plugin
 `dsh-better-sidebar` maintained by the omdsh-dev community.
 
 - Upstream package: `dsh-better-sidebar` (forked at version `0.12.3`)
 - Upstream repository: <https://github.com/omdsh-dev/DSH-better-sidebar>
 - Upstream license: MIT (preserved verbatim in [LICENSE](./LICENSE))
-- Fork repository: <https://github.com/All3nCN/dsh-better-sidebar>
+- Fork repository: <https://github.com/All3nCN/dsh-better-sidebar-N23>
 
 The fork republishes under the `@all3cn` scope with a fresh `0.1.0` version
 line. It carries no affiliation with or endorsement by DeepSeek, the DSH

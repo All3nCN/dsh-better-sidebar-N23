@@ -1,4 +1,4 @@
-# @all3cn/dsh-better-sidebar
+# @all3cn/dsh-better-sidebar-n23
 
 一个服务化的侧边栏框架 + 一套开箱即用的 DSH 完整工作台。本包是开源插件
 [dsh-better-sidebar](https://github.com/omdsh-dev/DSH-better-sidebar)（MIT）的社区
@@ -33,13 +33,13 @@ fork，在 `@all3cn` 作用域下独立发版；上游致谢见 [UPSTREAM.md](./
 前置：已装好 DSH（`dsh web` 可正常运行）。
 
 ```sh
-dsh plugin --profile web add @all3cn/dsh-better-sidebar
+dsh plugin --profile web add @all3cn/dsh-better-sidebar-n23
 ```
 
 包内声明了 `dsh.bundle.patch`（[cordis.patch.yml](./cordis.patch.yml)），CLI 的
 bundle 协调会自动把它加入 profile 的 bundle 栈，无需手动改 profile 文件。若
 profile 中残留旧的 `dsh-better-sidebar`（上游或本地 fork）手动挂载行，请先移除
-以免双挂载。卸载：`dsh plugin --profile web remove @all3cn/dsh-better-sidebar`。
+以免双挂载。卸载：`dsh plugin --profile web remove @all3cn/dsh-better-sidebar-n23`。
 
 也可用包内一键脚本（处理 pnpm 11 构建许可与 minimumReleaseAge 放行）：
 

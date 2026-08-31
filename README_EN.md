@@ -1,4 +1,4 @@
-# @all3cn/dsh-better-sidebar
+# @all3cn/dsh-better-sidebar-n23
 
 A service-first sidebar framework plus a complete out-of-the-box workbench for
 DSH. This package is a community fork of the open-source plugin
@@ -42,7 +42,7 @@ declared as `@deepseek-ai/* >= 0.1.0-rc.6 < 0.2.0`. Requires Node.js >= 20.
 Prerequisite: a working DSH installation (`dsh web` runs).
 
 ```sh
-dsh plugin --profile web add @all3cn/dsh-better-sidebar
+dsh plugin --profile web add @all3cn/dsh-better-sidebar-n23
 ```
 
 The package declares a `dsh.bundle.patch`
@@ -50,7 +50,7 @@ The package declares a `dsh.bundle.patch`
 it to the profile bundle stack automatically — no profile file edits. If the
 profile still carries an old manual mount line for `dsh-better-sidebar`
 (upstream or a local fork copy), remove it first to avoid double-mounting.
-Uninstall: `dsh plugin --profile web remove @all3cn/dsh-better-sidebar`.
+Uninstall: `dsh plugin --profile web remove @all3cn/dsh-better-sidebar-n23`.
 
 A one-shot helper script is included (handles pnpm 11 build approvals and the
 minimumReleaseAge bypass):

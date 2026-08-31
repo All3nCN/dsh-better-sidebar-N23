@@ -1,12 +1,12 @@
-# @all3cn/dsh-better-sidebar bundle patch
+# @all3cn/dsh-better-sidebar-n23 bundle patch
 #
 # This file is the `dsh.bundle.patch` layer of the published npm package: when
 # the plugin is installed through the official CLI —
 #
-#   dsh plugin --profile <name> add @all3cn/dsh-better-sidebar@<version>
+#   dsh plugin --profile <name> add @all3cn/dsh-better-sidebar-n23@<version>
 #
 # — the command reconciles `dsh.profile.bundles` against installed packages
-# and, seeing this declaration, appends `@all3cn/dsh-better-sidebar` to the
+# and, seeing this declaration, appends `@all3cn/dsh-better-sidebar-n23` to the
 # bundle stack. The profile boot then merges THIS patch (a single `insert` of
 # the plugin row) exactly like a manual cordis.patch.yml mount line. No
 # profile file edits needed — one command installs and mounts.
@@ -20,4 +20,4 @@
 # two sidebars).
 - insert:
     - id: better-sidebar
-      name: '@all3cn/dsh-better-sidebar'
+      name: '@all3cn/dsh-better-sidebar-n23'
