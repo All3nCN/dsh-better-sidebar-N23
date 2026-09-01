@@ -10,10 +10,18 @@
  * user restores the sandbox from the row. When the global setting already
  * drops the sandbox, no unlock/restore action is offered (changing the
  * global setting is the settings page's job) — the red warning stands.
+ *
+ * The local unlock auto-expires after {@link AUTO_RESTORE_MS} (5 minutes)
+ * as a defense-in-depth measure: a user who walks away from an unsandboxed
+ * surface won't leave it unlocked indefinitely.
  */
+import { useEffect } from 'react'
 import clsx from 'clsx'
 import { t } from './locales.ts'
 import css from './sidebar.module.css'
+
+/** Local unlock auto-restore after 5 minutes (safety timeout). */
+const AUTO_RESTORE_MS = 5 * 60_000
 
 export function SandboxStatusBar(props: {
   /** The effective sandbox state (global pref OR the local temporary unlock). */
@@ -26,6 +34,14 @@ export function SandboxStatusBar(props: {
   onRestore: () => void
 }) {
   const { sandboxed, local, dangerCopy, onUnlock, onRestore } = props
+
+  // Auto-restore after the safety timeout when locally unlocked.
+  useEffect(() => {
+    if (!sandboxed && local) {
+      const id = setTimeout(onRestore, AUTO_RESTORE_MS)
+      return () => { clearTimeout(id) }
+    }
+  }, [sandboxed, local, onRestore])
   if (sandboxed) {
     const copy = t('sandboxStatusOn')
     return (

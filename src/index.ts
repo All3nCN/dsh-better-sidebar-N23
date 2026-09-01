@@ -735,7 +735,91 @@ export function apply(ctx: Context, config?: SidebarConfig): void {
   }, 'dsh-better-sidebar: teardown')
 }
 
-/** Push the live agent-terminal list for one session to a connected sidebar view. */
+/**
+ * Parsed WebSocket control frame from the terminal view.
+ * Resize (cols×rows) and close are the two recognized types;
+ * raw text input returns `kind: 'raw'`.
+ */
+interface TerminalControl {
+  kind: 'resize' | 'close' | 'raw' | 'unrecognized'
+  /** Resize dimensions (only present for kind === 'resize'). */
+  cols?: number
+  rows?: number
+  /** Raw text to write to the pty (only present for kind === 'raw'). */
+  text?: string
+}
+
+/** Decode one WebSocket message into a {@link TerminalControl}. */
+function parseControl(data: Buffer | ArrayBuffer | Buffer[]): TerminalControl {
+  const text = data.toString('utf8')
+  try {
+    const parsed: unknown = JSON.parse(text)
+    if (parsed !== null && typeof parsed === 'object') {
+      const ctl = parsed as { type?: unknown; cols?: unknown; rows?: unknown }
+      if (ctl.type === 'close') return { kind: 'close' }
+      if (ctl.type === 'resize' && typeof ctl.cols === 'number' && typeof ctl.rows === 'number') {
+        return { kind: 'resize', cols: ctl.cols, rows: ctl.rows }
+      }
+      return { kind: 'unrecognized' }
+    }
+  } catch {
+    // Not JSON: terminal input.
+  }
+  return { kind: 'raw', text }
+}
+
+/**
+ * Create the common onData / onExit pump for a live pty → WebSocket.
+ * Returns the two subscription disposers so the caller can wire them to
+ * the pty and clean up on socket close.
+ */
+function createPtyPump(
+  ws: WebSocket,
+  pty: { onData: (cb: (data: string) => void) => { dispose: () => void }; onExit: (cb: (e: { exitCode: number; signal?: number }) => void) => { dispose: () => void } },
+): { dataSub: { dispose: () => void }; exitSub: { dispose: () => void } } {
+  const onData = (data: string): void => {
+    if (ws.readyState === WebSocket.OPEN && ws.bufferedAmount < 4 * 1024 * 1024) {
+      ws.send(data)
+    }
+  }
+  const onExit = ({ exitCode }: { exitCode: number; signal?: number }): void => {
+    onData(`\r\n[process exited with code ${String(exitCode)}]\r\n`)
+  }
+  return { dataSub: pty.onData(onData), exitSub: pty.onExit(onExit) }
+}
+
+/** Type of a control-frame close handler. */
+type CloseHandler = () => void
+
+/**
+ * Wire the WebSocket message handler for one pty handle. Every message is
+ * decoded into a {@link TerminalControl}; `closeHandler` is called for the
+ * `close` frame (the agent path kills the pty immediately, the UI-tab path
+ * schedules a grace-period close). Returns `undefined` from the `ws.on`
+ * side-effect.
+ */
+function wireTtyMessages(
+  ws: WebSocket,
+  pty: { write: (data: string) => void; resize: (cols: number, rows: number) => void; exited?: boolean },
+  closeHandler: CloseHandler,
+  opts?: { skipExitedCheck?: boolean },
+): void {
+  ws.on('message', (data) => {
+    const ctl = parseControl(data)
+    if (ctl.kind === 'close') {
+      closeHandler()
+      return
+    }
+    if (opts?.skipExitedCheck !== true && pty.exited === true) return
+    if (ctl.kind === 'resize' && ctl.cols !== undefined && ctl.rows !== undefined) {
+      const dims = clampDims(ctl.cols, ctl.rows)
+      pty.resize(dims.cols, dims.rows)
+    } else if (ctl.kind === 'raw' && ctl.text !== undefined) {
+      pty.write(ctl.text)
+    }
+    // Unrecognized JSON → dropped (consistent with the original semantics).
+  })
+}
 async function attachAgentList(
   registry: AgentPtyRegistry | null,
   ws: WebSocket,
@@ -819,52 +903,13 @@ async function attachTerminal(
     const handle = ptyManager.open(sessionId, tabId, cwd, 80, 24)
     // Replay the transcript, then follow live output.
     if (handle.transcript !== '') ws.send(handle.transcript)
-    const onData = (data: string): void => {
-      if (ws.readyState === WebSocket.OPEN && ws.bufferedAmount < 4 * 1024 * 1024) {
-        ws.send(data)
-      }
-    }
-    const onExit = ({ exitCode }: { exitCode: number; signal?: number }): void => {
-      onData(`\r\n[process exited with code ${String(exitCode)}]\r\n`)
-    }
-    const dataSub = handle.pty.onData(onData)
-    const exitSub = handle.pty.onExit(onExit)
-    ws.on('message', (data) => {
-      const text = data.toString('utf8')
-      // Control frames are JSON with a known shape; anything else (including
-      // JSON that is not a recognized control) is terminal input, verbatim.
-      let control: { type?: unknown; cols?: unknown; rows?: unknown } | null = null
-      try {
-        const parsed: unknown = JSON.parse(text)
-        if (parsed !== null && typeof parsed === 'object') {
-          control = parsed as { type?: unknown; cols?: unknown; rows?: unknown }
-        }
-      } catch {
-        // Not JSON: terminal input.
-      }
-      if (control !== null && control.type === 'close') {
-        // The owning tab was closed: release the quota immediately.
-        ptyManager.scheduleClose(handle.key, 0)
-        return
-      }
-      if (handle.exited) return
-      if (
-        control !== null
-        && control.type === 'resize'
-        && typeof control.cols === 'number' && typeof control.rows === 'number'
-      ) {
-        const dims = clampDims(control.cols, control.rows)
-        handle.pty.resize(dims.cols, dims.rows)
-      } else {
-        handle.pty.write(text)
-      }
+    const { dataSub, exitSub } = createPtyPump(ws, handle.pty)
+    wireTtyMessages(ws, handle.pty, () => {
+      ptyManager.scheduleClose(handle.key, 0)
     })
     ws.on('close', () => {
       dataSub.dispose()
       exitSub.dispose()
-      // A bare socket drop (refresh, tab switch) leaves the process alive
-      // for a grace period so a quick reconnect keeps it; the reconnect's
-      // open() cancels the pending close.
       ptyManager.scheduleClose(handle.key, resolved.reconnectGraceMs)
     })
   } catch (error) {
@@ -885,57 +930,12 @@ function pumpAgentTerminal(
   ws: WebSocket,
 ): void {
   if (handle.transcript !== '') ws.send(handle.transcript)
-  const onData = (data: string): void => {
-    if (ws.readyState === WebSocket.OPEN && ws.bufferedAmount < 4 * 1024 * 1024) {
-      ws.send(data)
-    }
-  }
-  const onExit = ({ exitCode }: { exitCode: number; signal?: number }): void => {
-    onData(`\r\n[process exited with code ${String(exitCode)}]\r\n`)
-  }
-  const dataSub = handle.pty.onData(onData)
-  const exitSub = handle.pty.onExit(onExit)
-  ws.on('message', (data) => {
-    if (handle.exited) return
-    const text = data.toString('utf8')
-    let control: { type?: unknown; cols?: unknown; rows?: unknown } | null = null
-    try {
-      const parsed: unknown = JSON.parse(text)
-      if (parsed !== null && typeof parsed === 'object') {
-        control = parsed as { type?: unknown; cols?: unknown; rows?: unknown }
-      }
-    } catch {
-      // Not JSON: terminal input.
-    }
-    if (control !== null && control.type === 'close') {
-      // The user closed the sidebar tab: kill the pty immediately. The
-      // agent's next terminal_list / terminal_send will see it gone.
-      registry.close(handle.uuid)
-      return
-    }
-    if (
-      control !== null
-      && control.type === 'resize'
-      && typeof control.cols === 'number' && typeof control.rows === 'number'
-    ) {
-      const dims = clampDims(control.cols, control.rows)
-      handle.pty.resize(dims.cols, dims.rows)
-    } else if (control === null) {
-      // Raw text input (a JSON-looking string the pty would have received
-      // verbatim is reachable in theory but is exotic for an agent terminal;
-      // preserve the UI-tab semantics and forward as input).
-      handle.pty.write(text)
-    }
-    // An unrecognized JSON control frame is dropped (the UI-tab path also
-    // treats non-resize JSON controls as input, but for an agent terminal
-    // there is no realistic input that is also valid JSON).
+  const { dataSub, exitSub } = createPtyPump(ws, handle.pty)
+  wireTtyMessages(ws, handle.pty, () => {
+    registry.close(handle.uuid)
   })
   ws.on('close', () => {
     dataSub.dispose()
     exitSub.dispose()
-    // A bare socket drop (refresh, tab switch) leaves the agent's pty alive.
-    // The agent owns the lifetime: only `terminal_close`, a `{type:'close'}`
-    // frame, or plugin teardown kills it. A reconnecting view reattaches the
-    // same shell and gets the full transcript replayed.
   })
 }

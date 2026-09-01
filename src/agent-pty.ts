@@ -70,6 +70,11 @@ const SIGNAL_NAMES: Record<number, string> = {
   17: 'SIGCHLD', 18: 'SIGCONT', 19: 'SIGSTOP', 20: 'SIGTSTP',
 }
 
+/** Milliseconds remaining until a deadline (safe floor at 0). */
+function remaining(start: number, deadline: number): number {
+  return Math.max(0, deadline - Math.max(start, Date.now()))
+}
+
 /** Convert a raw signal number to a name (or null when absent/unknown). */
 function signalNameOf(signal: number | null | undefined): string | null {
   if (signal === null || signal === undefined) return null
@@ -357,22 +362,15 @@ export class AgentPtyRegistry {
   /**
    * Wait for `needle` to appear in a terminal's transcript, or for the
    * terminal to exit, or for the timeout to elapse — whichever happens
-   * first. The wait polls the live transcript every ~50ms and short-circuits
-   * on `signal` abort (re-thrown as the abort reason so the tool layer
-   * surfaces cancellation).
+   * first. The implementation uses event-driven wakeups (pty onData and
+   * onExit) rather than polling, so the wait consumes no CPU until output
+   * arrives or the pty exits.
    *
-   * The match scans the FULL retained transcript on each poll, not just the
-   * delta since the last poll — a needle that scrolled past the most recent
-   * chunk but is still within the ~1 MiB bound is still a match. The
-   * returned line/column locate the FIRST occurrence (oldest), which is what
-   * a user watching the terminal would have seen first.
-   *
-   * The implementation uses polling (not pty onData subscription) because
-   * node-pty's onData fires before the registry's own onData listener
-   * updates the transcript (listener order is not guaranteed), and on
-   * Windows ConPTY output can arrive in bursts with batching delays that
-   * make event-driven wakeups unreliable. A 50ms poll is fast enough for
-   * interactive use and simple enough to be obviously correct.
+   * The match scans the FULL retained transcript on every wakeup, not just
+   * the delta — a needle that scrolled past the most recent chunk but is
+   * still within the ~1 MiB bound is still a match. The returned
+   * line/column locate the FIRST occurrence (oldest), which is what a user
+   * watching the terminal would have seen first.
    * @param uuid - terminal to watch.
    * @param needle - substring to search for (case-sensitive, verbatim).
    * @param timeoutMs - max wait; default 10000 (10s). Clamped to ≥100ms.
@@ -391,10 +389,8 @@ export class AgentPtyRegistry {
     const handle = this.expect(uuid)
     const timeout = Math.max(100, Math.floor(timeoutMs))
     const start = Date.now()
-    const deadline = start + timeout
-    // Fast path: already exited, or the needle is already in the transcript
-    // (a `terminal_send` may have produced the expected output before this
-    // call even started).
+
+    // Fast path: already exited, or the needle is already in the transcript.
     if (handle.exited) {
       return { kind: 'exited', needle, exitCode: handle.exitCode ?? null, exitSignal: signalNameOf(handle.exitSignal) }
     }
@@ -402,27 +398,64 @@ export class AgentPtyRegistry {
     if (firstHit !== undefined) {
       return { kind: 'found', needle, line: firstHit.line, column: firstHit.column, elapsedMs: Date.now() - start }
     }
-    // Poll loop: check the transcript every 50ms, exit on match / exit /
-    // abort / timeout. The handle is read live each iteration (its transcript
-    // and exited fields mutate as the pty produces output).
-    while (true) {
-      if (signal?.aborted) signal.throwIfAborted()
-      if (handle.exited) {
-        return { kind: 'exited', needle, exitCode: handle.exitCode ?? null, exitSignal: signalNameOf(handle.exitSignal) }
+
+    // Event-driven wait: resolve when (a) new pty data contains the needle,
+    // (b) the pty exits, (c) the timeout expires, or (d) the signal aborts.
+    return new Promise<AgentTerminalWaitResult>((resolve) => {
+      const deadline = start + timeout
+      let settled = false
+
+      const settle = (result: AgentTerminalWaitResult): void => {
+        if (settled) return
+        settled = true
+        cleanup()
+        resolve(result)
       }
-      const hit = locateNeedle(handle.transcript, needle)
-      if (hit !== undefined) {
-        return { kind: 'found', needle, line: hit.line, column: hit.column, elapsedMs: Date.now() - start }
+
+      const onAbort = (): void => {
+        if (!settled) {
+          settled = true
+          cleanup()
+          signal?.throwIfAborted()
+        }
       }
-      if (Date.now() >= deadline) {
-        return { kind: 'timeout', needle, timeoutMs: timeout, totalLines: handle.transcript.split('\n').length }
+
+      const onData = (): void => {
+        if (handle.exited) {
+          settle({ kind: 'exited', needle, exitCode: handle.exitCode ?? null, exitSignal: signalNameOf(handle.exitSignal) })
+          return
+        }
+        const hit = locateNeedle(handle.transcript, needle)
+        if (hit !== undefined) {
+          settle({ kind: 'found', needle, line: hit.line, column: hit.column, elapsedMs: Date.now() - start })
+        }
       }
-      await new Promise(resolve => {
-        const t = setTimeout(resolve, 50)
-        // Allow the Node process to exit even if the timer is pending.
-        if (typeof t === 'object' && 'unref' in t) (t as { unref: () => void }).unref()
-      })
-    }
+
+      const onExit = (): void => {
+        settle({ kind: 'exited', needle, exitCode: handle.exitCode ?? null, exitSignal: signalNameOf(handle.exitSignal) })
+      }
+
+      const onTimeout = (): void => {
+        settle({ kind: 'timeout', needle, timeoutMs: timeout, totalLines: handle.transcript.split('\n').length })
+      }
+
+      // Wire up subscriptions: pty onData, pty onExit, and a timeout.
+      const dataSub = handle.pty.onData(onData)
+      const exitSub = handle.pty.onExit(onExit)
+      const timerId = setTimeout(onTimeout, remaining(start, deadline))
+      if (typeof timerId === 'object' && 'unref' in timerId) {
+        (timerId as { unref: () => void }).unref()
+      }
+
+      signal?.addEventListener('abort', onAbort, { once: true })
+
+      const cleanup = (): void => {
+        dataSub.dispose()
+        exitSub.dispose()
+        clearTimeout(timerId)
+        signal?.removeEventListener('abort', onAbort)
+      }
+    })
   }
 
   /**
