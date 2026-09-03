@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Tests use the Node.js built-in test runner and no dependencies, so no
+      # install step is required.
+      - name: Run tests
+        run: npm test
+
+      - name: Validate registry packager syntax
+        run: node --check scripts/package-registry.mjs
+
+      - name: Validate package manifest consistency
+        run: npm run package:registry -- --dry-run
