@@ -128,6 +128,7 @@
     "ws": "^8.18.0"
   },
   "scripts": {
+    "test": "node --test tests/*.test.mjs",
     "package:registry": "node scripts/package-registry.mjs",
     "pack:audit": "npm pack --ignore-scripts"
   },
