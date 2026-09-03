@@ -42,3 +42,17 @@ intentionally synchronized by hand (the fork checkout does not carry the
 upstream tsdown/tsc build toolchain). Keep them synchronized: run the
 upstream build in a dependency-complete checkout, then copy/commit `lib/`;
 or explicitly review the intentionally mirrored compiled change.
+
+## src/lib split-track state (2026-09-01 rollback incident)
+
+- `src/` has been restored with the upstream 0.17.1 A-class robustness /
+  security fixes (the `src/` half of the original A-class absorption).
+- `lib/` intentionally stays on the accepted shell-refactor version: the shell
+  CSS (three-zone bar, activity rail, compact header) was hand-mirrored into
+  the compiled bundles and has not yet been written back to `src/`.
+- Therefore `src/` and `lib/` are intentionally split-track: `src/` is ahead
+  on robustness fixes, `lib/` is ahead on shell layout. Runtime behavior is
+  governed by `lib/`, not `src/`.
+- Before any full `tsc` + `tsdown` rebuild, the shell changes must first be
+  written back to `src/`; otherwise the shell layout is wiped (the root cause
+  of the 2026-09-01 rollback).

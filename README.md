@@ -76,6 +76,17 @@ ctx.betterSidebar.registerFileViewer({ pattern: "**/*.xyz", render: ... });
 - 本仓库直接跟踪已构建的 `lib/`；`src/` 与 `lib/` 手工保持同步（见
   [UPSTREAM.md](./UPSTREAM.md)）
 
+## 测试
+
+测试使用 Node.js 内置 test runner，零依赖：
+
+```sh
+npm test
+```
+
+`src/` 与 `lib/` 当前为有意的分轨状态（`src/` 领先健壮性修复、`lib/` 领先外壳布局，
+运行时以 `lib/` 为准），详见 [UPSTREAM.md](./UPSTREAM.md)。
+
 ## 许可
 
 [MIT](./LICENSE)。fork 自 omdsh-dev/DSH-better-sidebar（MIT），与 DeepSeek 及

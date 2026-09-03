@@ -91,6 +91,18 @@ ctx.betterSidebar.registerFileViewer({ pattern: "**/*.xyz", render: ... });
 - This repository tracks the prebuilt `lib/` directly; `src/` and `lib/` are
   kept in sync by hand (see [UPSTREAM.md](./UPSTREAM.md))
 
+## Testing
+
+Tests use the Node.js built-in test runner with no dependencies:
+
+```sh
+npm test
+```
+
+`src/` and `lib/` are currently intentionally split-track (`src/` is ahead on
+robustness fixes, `lib/` is ahead on shell layout; runtime is governed by
+`lib/`). See [UPSTREAM.md](./UPSTREAM.md) for details.
+
 ## License
 
 [MIT](./LICENSE). Forked from omdsh-dev/DSH-better-sidebar (MIT); not
